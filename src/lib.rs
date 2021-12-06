@@ -209,8 +209,7 @@ impl<E: Engine> MPCParameters<E> {
             m *= 2;
             exp += 1;
 
-            // Powers of Tau ceremony can't support more than 2^28
-            if exp > 28 {
+            if exp > E::Fr::S {
                 return Err(SynthesisError::PolynomialDegreeTooLarge);
             }
         }
