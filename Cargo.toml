@@ -22,5 +22,5 @@ pairing_ce = "^0.21"
 getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-default = []
+default = ["multicore"]
 multicore = ["bellman_ce/multicore"]
