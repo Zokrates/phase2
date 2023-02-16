@@ -169,6 +169,7 @@ impl<E: Engine> MPCParameters<E> {
     pub fn new<C, R: Read>(
         circuit: C,
         phase1_radix: &mut R,
+        should_filter_points_at_infinity: bool,
     ) -> Result<MPCParameters<E>, SynthesisError>
     where
         C: Circuit<E>,
@@ -427,30 +428,41 @@ impl<E: Engine> MPCParameters<E> {
             ic: ic.into_iter().map(|e| e.into_affine()).collect(),
         };
 
-        let params = Parameters {
-            vk,
-            h: Arc::new(h),
-            l: Arc::new(l.into_iter().map(|e| e.into_affine()).collect()),
+        let params = if should_filter_points_at_infinity {
+            Parameters {
+                vk: vk,
+                h: Arc::new(h),
+                l: Arc::new(l.into_iter().map(|e| e.into_affine()).collect()),
 
-            // Filter points at infinity away from A/B queries
-            a: Arc::new(
-                a_g1.into_iter()
-                    .filter(|e| !e.is_zero())
-                    .map(|e| e.into_affine())
-                    .collect(),
-            ),
-            b_g1: Arc::new(
-                b_g1.into_iter()
-                    .filter(|e| !e.is_zero())
-                    .map(|e| e.into_affine())
-                    .collect(),
-            ),
-            b_g2: Arc::new(
-                b_g2.into_iter()
-                    .filter(|e| !e.is_zero())
-                    .map(|e| e.into_affine())
-                    .collect(),
-            ),
+                // Filter points at infinity away from A/B queries
+                a: Arc::new(
+                    a_g1.into_iter()
+                        .filter(|e| !e.is_zero())
+                        .map(|e| e.into_affine())
+                        .collect(),
+                ),
+                b_g1: Arc::new(
+                    b_g1.into_iter()
+                        .filter(|e| !e.is_zero())
+                        .map(|e| e.into_affine())
+                        .collect(),
+                ),
+                b_g2: Arc::new(
+                    b_g2.into_iter()
+                        .filter(|e| !e.is_zero())
+                        .map(|e| e.into_affine())
+                        .collect(),
+                ),
+            }
+        } else {
+            Parameters {
+                vk: vk,
+                h: Arc::new(h),
+                l: Arc::new(l.into_iter().map(|e| e.into_affine()).collect()),
+                a: Arc::new(a_g1.into_iter().map(|e| e.into_affine()).collect()),
+                b_g1: Arc::new(b_g1.into_iter().map(|e| e.into_affine()).collect()),
+                b_g2: Arc::new(b_g2.into_iter().map(|e| e.into_affine()).collect()),
+            }
         };
 
         let h = {
@@ -591,8 +603,11 @@ impl<E: Engine> MPCParameters<E> {
         &self,
         circuit: C,
         phase1_radix: &mut R,
+        should_filter_points_at_infinity: bool,
     ) -> Result<Vec<[u8; 64]>, ()> {
-        let initial_params = MPCParameters::new(circuit, phase1_radix).map_err(|_| ())?;
+        let initial_params =
+            MPCParameters::new(circuit, phase1_radix, should_filter_points_at_infinity)
+                .map_err(|_| ())?;
 
         // H/L will change, but should have same length
         if initial_params.params.h.len() != self.params.h.len() {
